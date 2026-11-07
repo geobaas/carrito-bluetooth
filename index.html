@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carrito Bluetooth</title>
+<meta name="description" content="Carrito controlado por Bluetooth con Arduino Uno, L298N y HC-05: esquemático, conexiones y proceso de armado.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f5f1;
+    --surface: #ffffff;
+    --ink: #1c1d21;
+    --muted: #62656e;
+    --line: #dcdad3;
+    --accent: #0f7b6c;
+    --board-uno: #1f6fb2;
+    --board-l298: #b3261e;
+    --board-hc: #2d7d46;
+    --w-power: #d93025;
+    --w-gnd: #3a3b40;
+    --w-5v: #e37400;
+    --w-pwm: #9334e6;
+    --w-dir: #1a73e8;
+    --w-data: #188038;
+    --pin: #ffffff;
+    --code-bg: #f0eee8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121316;
+      --surface: #1b1c20;
+      --ink: #ececec;
+      --muted: #a1a3ab;
+      --line: #33353b;
+      --accent: #4fd1b5;
+      --board-uno: #5aa9e6;
+      --board-l298: #f28b82;
+      --board-hc: #81c995;
+      --w-power: #f28b82;
+      --w-gnd: #bdc1c6;
+      --w-5v: #fdb863;
+      --w-pwm: #c58af9;
+      --w-dir: #8ab4f8;
+      --w-data: #81c995;
+      --pin: #1b1c20;
+      --code-bg: #15161a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121316; --surface: #1b1c20; --ink: #ececec; --muted: #a1a3ab; --line: #33353b;
+    --accent: #4fd1b5; --board-uno: #5aa9e6; --board-l298: #f28b82; --board-hc: #81c995;
+    --w-power: #f28b82; --w-gnd: #bdc1c6; --w-5v: #fdb863; --w-pwm: #c58af9; --w-dir: #8ab4f8;
+    --w-data: #81c995; --pin: #1b1c20; --code-bg: #15161a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 Inter, system-ui, sans-serif;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+  header { padding: 56px 0 32px; }
+  .tag {
+    display: inline-block; font: 600 12px/1 "JetBrains Mono", monospace;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--accent);
+    margin-bottom: 14px;
+  }
+  h1, h2, h3 { font-family: "Space Grotesk", sans-serif; line-height: 1.15; margin: 0; }
+  h1 { font-size: clamp(34px, 7vw, 56px); }
+  h2 { font-size: 26px; margin-bottom: 16px; }
+  h3 { font-size: 17px; margin-bottom: 4px; }
+  .lead { color: var(--muted); font-size: 18px; max-width: 640px; margin: 14px 0 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+  .chip {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+    padding: 5px 12px; font-size: 14px;
+  }
+  section { padding: 36px 0; border-top: 1px solid var(--line); }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px;
+  }
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .schematic svg { display: block; width: 100%; min-width: 640px; height: auto; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 14px; font-size: 14px; color: var(--muted); }
+  .legend span::before {
+    content: ""; display: inline-block; width: 18px; height: 3px; border-radius: 2px;
+    background: var(--c); vertical-align: middle; margin-right: 6px;
+  }
+  .note { font-size: 14px; color: var(--muted); margin: 12px 0 0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  td code, p code, li code { font: 13.5px "JetBrains Mono", monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 16px; }
+  .grid2 > * { min-width: 0; }
+
+  ol.steps { list-style: none; padding: 0; margin: 0; counter-reset: s; }
+  ol.steps li {
+    counter-increment: s; position: relative; padding: 0 0 24px 52px;
+  }
+  ol.steps li::before {
+    content: counter(s); position: absolute; left: 0; top: -2px;
+    width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--accent); color: var(--bg); font: 700 15px "Space Grotesk", sans-serif;
+  }
+  ol.steps li:not(:last-child)::after {
+    content: ""; position: absolute; left: 16px; top: 36px; bottom: 4px; width: 2px; background: var(--line);
+  }
+  ol.steps p { margin: 4px 0 0; color: var(--muted); }
+
+  .keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .key { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+  .key b {
+    font: 600 16px "JetBrains Mono", monospace; min-width: 32px; height: 32px; border-radius: 8px;
+    display: grid; place-items: center; background: var(--code-bg); border: 1px solid var(--line);
+  }
+  .key span { font-size: 14px; }
+
+  details summary { cursor: pointer; font-weight: 600; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px; overflow-x: auto; font: 13px/1.55 "JetBrains Mono", monospace; margin: 14px 0 0;
+  }
+  footer { padding: 28px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+  a { color: var(--accent); }
+
+  /* SVG */
+  .board { fill: var(--surface); stroke-width: 2; }
+  .b-uno { stroke: var(--board-uno); }
+  .b-l298 { stroke: var(--board-l298); }
+  .b-hc { stroke: var(--board-hc); }
+  .b-bat { stroke: var(--w-power); }
+  .title { font: 700 17px "Space Grotesk", sans-serif; fill: var(--ink); }
+  .sub { font: 12px Inter, sans-serif; fill: var(--muted); }
+  .pl { font: 600 11px "JetBrains Mono", monospace; fill: var(--ink); }
+  .ml { font: 600 13px "Space Grotesk", sans-serif; fill: var(--muted); }
+  .wire { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  .pin { fill: var(--pin); stroke: var(--ink); stroke-width: 1.5; }
+  .dot { fill: var(--ink); }
+  .motor { fill: var(--surface); stroke: var(--ink); stroke-width: 2; }
+  .mtxt { font: 700 15px "Space Grotesk", sans-serif; fill: var(--ink); }
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <div class="tag">Proyecto Arduino</div>
+  <h1>Carrito Bluetooth</h1>
+  <p class="lead">Un carrito de 4 motores que se maneja desde el celular. El teléfono manda letras por Bluetooth, el Arduino las lee y le dice al puente H cómo mover cada lado.</p>
+  <div class="chips">
+    <span class="chip">Arduino Uno</span>
+    <span class="chip">Driver L298N</span>
+    <span class="chip">Bluetooth HC-05</span>
+    <span class="chip">4 motores DC</span>
+    <span class="chip">App: Arduino Bluetooth RC Car</span>
+  </div>
+</header>
+
+<section class="wrap">
+  <h2>Esquemático</h2>
+  <div class="card schematic">
+    <div class="scroll">
+      <svg viewBox="0 0 920 560" role="img" aria-label="Diagrama de conexiones: batería y motores al L298N, L298N al Arduino Uno, y módulo HC-05 al Arduino">
+        <!-- Motores izquierdos: OUT1 / OUT2 -->
+        <text class="ml" x="125" y="80" text-anchor="middle">Motores izquierdos</text>
+        <path class="wire" stroke="var(--w-gnd)" d="M100 95 H300 M100 165 H300 M100 95 V165 M190 95 V165"/>
+        <circle class="dot" cx="190" cy="95" r="4"/><circle class="dot" cx="190" cy="165" r="4"/>
+        <circle class="motor" cx="100" cy="130" r="20"/><text class="mtxt" x="100" y="135" text-anchor="middle">M</text>
+        <circle class="motor" cx="190" cy="130" r="20"/><text class="mtxt" x="190" y="135" text-anchor="middle">M</text>
+
+        <!-- Motores derechos: OUT3 / OUT4 -->
+        <text class="ml" x="795" y="80" text-anchor="middle">Motores derechos</text>
+        <path class="wire" stroke="var(--w-gnd)" d="M640 95 H840 M640 165 H840 M750 95 V165 M840 95 V165"/>
+        <circle class="dot" cx="750" cy="95" r="4"/><circle class="dot" cx="750" cy="165" r="4"/>
+        <circle class="motor" cx="750" cy="130" r="20"/><text class="mtxt" x="750" y="135" text-anchor="middle">M</text>
+        <circle class="motor" cx="840" cy="130" r="20"/><text class="mtxt" x="840" y="135" text-anchor="middle">M</text>
+
+        <!-- Batería -->
+        <rect class="board b-bat" x="30" y="262" width="160" height="72" rx="8"/>
+        <text class="title" x="46" y="290">Batería</text>
+        <text class="sub" x="46" y="310">7 – 12 V</text>
+        <text class="pl" x="176" y="289" text-anchor="end">+</text>
+        <text class="pl" x="176" y="319" text-anchor="end">−</text>
+        <path class="wire" stroke="var(--w-power)" d="M190 285 H330 V240"/>
+        <path class="wire" stroke="var(--w-gnd)" d="M190 315 H370"/>
+        <circle class="dot" cx="370" cy="315" r="4"/>
+
+        <!-- L298N → Arduino (alimentación) -->
+        <path class="wire" stroke="var(--w-gnd)" d="M370 240 V360"/>
+        <path class="wire" stroke="var(--w-5v)" d="M410 240 V360"/>
+        <!-- Control -->
+        <path class="wire" stroke="var(--w-pwm)" d="M450 240 V360 M610 240 V360"/>
+        <path class="wire" stroke="var(--w-dir)" d="M482 240 V360 M514 240 V360 M546 240 V360 M578 240 V360"/>
+
+        <!-- L298N -->
+        <rect class="board b-l298" x="300" y="40" width="340" height="200" rx="10"/>
+        <text class="title" x="470" y="118" text-anchor="middle">L298N</text>
+        <text class="sub" x="470" y="138" text-anchor="middle">Puente H doble</text>
+        <text class="sub" x="470" y="156" text-anchor="middle">(quitar jumpers de ENA y ENB)</text>
+        <text class="pl" x="310" y="99">OUT1</text><text class="pl" x="310" y="169">OUT2</text>
+        <text class="pl" x="630" y="99" text-anchor="end">OUT3</text><text class="pl" x="630" y="169" text-anchor="end">OUT4</text>
+        <g class="pl" text-anchor="middle">
+          <text x="330" y="226">12V</text><text x="370" y="226">GND</text><text x="410" y="226">5V</text>
+          <text x="450" y="226">ENA</text><text x="482" y="226">IN1</text><text x="514" y="226">IN2</text>
+          <text x="546" y="226">IN3</text><text x="578" y="226">IN4</text><text x="610" y="226">ENB</text>
+        </g>
+        <g>
+          <circle class="pin" cx="300" cy="95" r="4"/><circle class="pin" cx="300" cy="165" r="4"/>
+          <circle class="pin" cx="640" cy="95" r="4"/><circle class="pin" cx="640" cy="165" r="4"/>
+          <circle class="pin" cx="330" cy="240" r="4"/><circle class="pin" cx="370" cy="240" r="4"/><circle class="pin" cx="410" cy="240" r="4"/>
+          <circle class="pin" cx="450" cy="240" r="4"/><circle class="pin" cx="482" cy="240" r="4"/><circle class="pin" cx="514" cy="240" r="4"/>
+          <circle class="pin" cx="546" cy="240" r="4"/><circle class="pin" cx="578" cy="240" r="4"/><circle class="pin" cx="610" cy="240" r="4"/>
+        </g>
+
+        <!-- HC-05 ↔ Arduino -->
+        <path class="wire" stroke="var(--w-5v)" d="M640 405 H730"/>
+        <path class="wire" stroke="var(--w-gnd)" d="M640 432 H730"/>
+        <path class="wire" stroke="var(--w-data)" d="M730 462 H640"/>
+        <path class="wire" stroke="var(--w-data)" stroke-dasharray="6 6" d="M640 492 H730"/>
+        <text class="sub" x="685" y="512" text-anchor="middle">divisor 1k/2k</text>
+
+        <!-- Arduino Uno -->
+        <rect class="board b-uno" x="300" y="360" width="340" height="170" rx="10"/>
+        <text class="title" x="470" y="465" text-anchor="middle">Arduino Uno</text>
+        <text class="sub" x="470" y="485" text-anchor="middle">SoftwareSerial en D2 / D3</text>
+        <g class="pl" text-anchor="middle">
+          <text x="370" y="382">GND</text><text x="410" y="382">5V</text>
+          <text x="450" y="382">D5</text><text x="482" y="382">D7</text><text x="514" y="382">D8</text>
+          <text x="546" y="382">D9</text><text x="578" y="382">D10</text><text x="610" y="382">D6</text>
+        </g>
+        <g class="pl" text-anchor="end">
+          <text x="630" y="409">5V</text><text x="630" y="436">GND</text>
+          <text x="630" y="466">D2</text><text x="630" y="496">D3</text>
+        </g>
+        <g>
+          <circle class="pin" cx="370" cy="360" r="4"/><circle class="pin" cx="410" cy="360" r="4"/>
+          <circle class="pin" cx="450" cy="360" r="4"/><circle class="pin" cx="482" cy="360" r="4"/><circle class="pin" cx="514" cy="360" r="4"/>
+          <circle class="pin" cx="546" cy="360" r="4"/><circle class="pin" cx="578" cy="360" r="4"/><circle class="pin" cx="610" cy="360" r="4"/>
+          <circle class="pin" cx="640" cy="405" r="4"/><circle class="pin" cx="640" cy="432" r="4"/>
+          <circle class="pin" cx="640" cy="462" r="4"/><circle class="pin" cx="640" cy="492" r="4"/>
+        </g>
+
+        <!-- HC-05 -->
+        <rect class="board b-hc" x="730" y="360" width="160" height="170" rx="10"/>
+        <text class="title" x="830" y="440" text-anchor="middle">HC-05</text>
+        <text class="sub" x="830" y="460" text-anchor="middle">Bluetooth</text>
+        <text class="sub" x="830" y="476" text-anchor="middle">9600 baud</text>
+        <g class="pl">
+          <text x="742" y="409">VCC</text><text x="742" y="436">GND</text>
+          <text x="742" y="466">TXD</text><text x="742" y="496">RXD</text>
+        </g>
+        <g>
+          <circle class="pin" cx="730" cy="405" r="4"/><circle class="pin" cx="730" cy="432" r="4"/>
+          <circle class="pin" cx="730" cy="462" r="4"/><circle class="pin" cx="730" cy="492" r="4"/>
+        </g>
+      </svg>
+    </div>
+    <div class="legend">
+      <span style="--c: var(--w-power)">Batería +</span>
+      <span style="--c: var(--w-gnd)">Tierra (GND) / motores</span>
+      <span style="--c: var(--w-5v)">5 V</span>
+      <span style="--c: var(--w-pwm)">Velocidad (PWM)</span>
+      <span style="--c: var(--w-dir)">Dirección</span>
+      <span style="--c: var(--w-data)">Datos Bluetooth</span>
+    </div>
+    <p class="note">Los dos motores de cada lado van en paralelo. Todas las tierras están unidas. La línea punteada (D3 → RXD) es opcional: el carrito solo recibe datos, y si se conecta conviene bajar los 5 V a ~3.3 V con un divisor de resistencias.</p>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2>Tabla de conexiones</h2>
+  <div class="grid2">
+    <div class="card scroll">
+      <table>
+        <tr><th>L298N</th><th>Arduino</th><th>Función</th></tr>
+        <tr><td>ENA</td><td><code>D5</code></td><td>Velocidad izquierda</td></tr>
+        <tr><td>IN1</td><td><code>D7</code></td><td>Dirección izquierda</td></tr>
+        <tr><td>IN2</td><td><code>D8</code></td><td>Dirección izquierda</td></tr>
+        <tr><td>IN3</td><td><code>D9</code></td><td>Dirección derecha</td></tr>
+        <tr><td>IN4</td><td><code>D10</code></td><td>Dirección derecha</td></tr>
+        <tr><td>ENB</td><td><code>D6</code></td><td>Velocidad derecha</td></tr>
+        <tr><td>5V</td><td><code>5V</code></td><td>Alimenta al Arduino</td></tr>
+        <tr><td>GND</td><td><code>GND</code></td><td>Tierra común</td></tr>
+      </table>
+    </div>
+    <div class="card scroll">
+      <table>
+        <tr><th>HC-05</th><th>Arduino</th><th>Nota</th></tr>
+        <tr><td>VCC</td><td><code>5V</code></td><td></td></tr>
+        <tr><td>GND</td><td><code>GND</code></td><td></td></tr>
+        <tr><td>TXD</td><td><code>D2</code></td><td>RX del Arduino</td></tr>
+        <tr><td>RXD</td><td><code>D3</code></td><td>Opcional, con divisor</td></tr>
+      </table>
+      <table style="margin-top:18px">
+        <tr><th>Batería</th><th>L298N</th><th></th></tr>
+        <tr><td>+</td><td><code>12V</code></td><td>7 – 12 V</td></tr>
+        <tr><td>−</td><td><code>GND</code></td><td></td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2>Proceso</h2>
+  <ol class="steps">
+    <li>
+      <h3>Chasis y motores</h3>
+      <p>Se montaron los 4 motores en el chasis y se unieron en parejas: los dos de la izquierda a OUT1/OUT2 y los dos de la derecha a OUT3/OUT4 del L298N. Así cada lado se controla como si fuera un solo motor.</p>
+    </li>
+    <li>
+      <h3>Alimentación</h3>
+      <p>La batería entra al borne de 12 V del L298N. El regulador del módulo da 5 V que alimentan al Arduino, y todas las tierras (batería, L298N, Arduino y HC-05) quedan unidas para que las señales tengan la misma referencia.</p>
+    </li>
+    <li>
+      <h3>Señales de control</h3>
+      <p>Se quitaron los jumpers de ENA y ENB para poder regular la velocidad con PWM desde <code>D5</code> y <code>D6</code>. Los pines IN1–IN4 van a <code>D7</code>–<code>D10</code> y deciden hacia qué lado gira cada par de motores.</p>
+    </li>
+    <li>
+      <h3>Bluetooth</h3>
+      <p>El HC-05 se conectó a <code>D2</code>/<code>D3</code> con <code>SoftwareSerial</code>, para dejar libre el puerto USB y poder subir el código y usar el Monitor Serie sin desconectar nada. El módulo trabaja a 9600 baud, su velocidad de fábrica.</p>
+    </li>
+    <li>
+      <h3>Código</h3>
+      <p>La función <code>lado()</code> mueve un lado con un valor de −255 a 255 (el signo es la dirección). <code>mover()</code> usa esa función para los dos lados, y <code>procesar()</code> convierte cada letra que manda la app en un movimiento.</p>
+    </li>
+    <li>
+      <h3>Pruebas y ajustes</h3>
+      <p>Primero se probó desde el Monitor Serie mandando letras a mano, y después desde la app. Si un lado giraba al revés, se corrige cambiando <code>INVERTIR_IZQ</code> o <code>INVERTIR_DER</code> a <code>true</code> en vez de volver a cablear.</p>
+    </li>
+  </ol>
+</section>
+
+<section class="wrap">
+  <h2>Comandos de la app</h2>
+  <div class="keys">
+    <div class="card key"><b>F</b><span>Adelante</span></div>
+    <div class="card key"><b>B</b><span>Atrás</span></div>
+    <div class="card key"><b>L</b><span>Girar izquierda</span></div>
+    <div class="card key"><b>R</b><span>Girar derecha</span></div>
+    <div class="card key"><b>G</b><span>Adelante-izq.</span></div>
+    <div class="card key"><b>I</b><span>Adelante-der.</span></div>
+    <div class="card key"><b>H</b><span>Atrás-izq.</span></div>
+    <div class="card key"><b>J</b><span>Atrás-der.</span></div>
+    <div class="card key"><b>S</b><span>Alto</span></div>
+    <div class="card key"><b>0–9</b><span>Velocidad</span></div>
+    <div class="card key"><b>q</b><span>Velocidad máxima</span></div>
+  </div>
+  <p class="note">Las diagonales frenan un lado a la mitad de velocidad para que el carrito haga una curva en lugar de girar en su lugar.</p>
+</section>
+
+<section class="wrap">
+  <h2>Código</h2>
+  <div class="card">
+    <details>
+      <summary>Ver <code>carrito_bluetooth.ino</code></summary>
+<pre><code>// Carrito Bluetooth - Arduino Uno + L298N + HC-05
+// App Android: "Arduino Bluetooth RC Car"
+
+#include &lt;SoftwareSerial.h&gt;
+
+// Bluetooth HC-05: TXD del modulo -&gt; pin 2 del Arduino
+SoftwareSerial bt(2, 3); // RX, TX
+
+// L298N
+const int ENA = 5;   // velocidad motores izquierdos
+const int IN1 = 7;
+const int IN2 = 8;
+const int IN3 = 9;
+const int IN4 = 10;
+const int ENB = 6;   // velocidad motores derechos
+
+int velocidad = 200; // 0 a 255
+
+// Si al ir hacia adelante un lado gira al reves, cambia su valor a true
+const bool INVERTIR_IZQ = false;
+const bool INVERTIR_DER = false;
+
+void lado(int en, int a, int b, int v, bool invertir) {
+  if (invertir) v = -v;
+  if (v &gt; 0) {
+    digitalWrite(a, HIGH);
+    digitalWrite(b, LOW);
+  } else if (v &lt; 0) {
+    digitalWrite(a, LOW);
+    digitalWrite(b, HIGH);
+  } else {
+    digitalWrite(a, LOW);
+    digitalWrite(b, LOW);
+  }
+  analogWrite(en, abs(v));
+}
+
+void mover(int izq, int der) {
+  lado(ENA, IN1, IN2, izq, INVERTIR_IZQ);
+  lado(ENB, IN3, IN4, der, INVERTIR_DER);
+}
+
+void procesar(char c) {
+  int v = velocidad;
+  switch (c) {
+    case 'F': mover(v, v); break;           // adelante
+    case 'B': mover(-v, -v); break;         // atras
+    case 'L': mover(-v, v); break;          // girar izquierda
+    case 'R': mover(v, -v); break;          // girar derecha
+    case 'G': mover(v / 2, v); break;       // adelante-izquierda
+    case 'I': mover(v, v / 2); break;       // adelante-derecha
+    case 'H': mover(-v / 2, -v); break;     // atras-izquierda
+    case 'J': mover(-v, -v / 2); break;     // atras-derecha
+    case 'S': mover(0, 0); break;           // alto
+    case 'q': velocidad = 255; break;       // velocidad maxima
+    default:
+      if (c &gt;= '0' &amp;&amp; c &lt;= '9') {
+        velocidad = map(c - '0', 0, 9, 90, 240);
+      }
+      break;
+  }
+}
+
+void setup() {
+  pinMode(ENA, OUTPUT);
+  pinMode(ENB, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  mover(0, 0);
+
+  Serial.begin(9600); // para probar desde el Monitor Serie
+  bt.begin(9600);     // velocidad de fabrica del HC-05
+  Serial.println("Carrito listo");
+}
+
+void loop() {
+  if (bt.available()) {
+    char c = bt.read();
+    Serial.println(c);
+    procesar(c);
+  }
+  if (Serial.available()) {
+    procesar(Serial.read());
+  }
+}</code></pre>
+    </details>
+  </div>
+</section>
+
+<footer class="wrap">
+  Hecho por Geovanny Francisco Baas Chalé · <a href="https://github.com/geobaas/carrito-bluetooth">Ver en GitHub</a>
+</footer>
+
+</body>
+</html>
